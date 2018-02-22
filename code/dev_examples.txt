@@ -1,0 +1,80 @@
+ONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 46
+quickbooks sponsored a " small business big game " contest , in which death wish coffee had a 30-second commercial aired free of charge courtesy of quickbooks . death wish coffee beat out nine other contenders from across the united states for the free advertisement .
+            QUESTION: how many other contestants did the company , that had their ad shown for free , beat out ?
+         TRUE ANSWER: nine
+    PREDICTED ANSWER: nine
+     F1 SCORE ANSWER: 1.000
+            EM SCORE: True
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 39
+southern california is home to many major business districts . central business districts ( cbd ) include downtown los angeles , downtown san diego , downtown san bernardino , downtown bakersfield , south coast metro and downtown riverside .
+            QUESTION: what is the only district in the cbd to not have " downtown " in it 's name ?
+         TRUE ANSWER: south coast metro
+    PREDICTED ANSWER: central business districts ( cbd ) include downtown los angeles , downtown san diego , downtown san bernardino , downtown bakersfield , south coast metro and downtown riverside
+     F1 SCORE ANSWER: 0.240
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 130
+to remedy the causes of the fire , changes were made in the block ii spacecraft and operational procedures , the most important of which were use of a _nitrogen/oxygen_ mixture instead of pure oxygen before and during launch , and removal of flammable cabin and space suit materials . the block ii design already called for replacement of the block i _plug-type_ hatch cover with a quick-release , outward opening door . nasa discontinued the manned block i program , using the block i spacecraft only for unmanned saturn v flights . crew members would also exclusively wear modified , fire-resistant block ii space suits , and would be designated by the block ii titles , regardless of whether a lm was present on the flight or not .
+            QUESTION: what type of materials inside the cabin were removed to help prevent more fire hazards in the future ?
+         TRUE ANSWER: flammable cabin and space suit materials
+    PREDICTED ANSWER: flammable cabin and space suit materials
+     F1 SCORE ANSWER: 1.000
+            EM SCORE: True
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 177
+the rocks collected from the moon are extremely old compared to rocks found on earth , as measured by radiometric dating techniques . they range in age from about 3.2 billion years for the basaltic samples derived from the lunar maria , to about 4.6 billion years for samples derived from the highlands crust . as such , they represent samples from a very early period in the development of the solar system , that are largely absent on earth . one important rock found during the apollo program is dubbed the genesis rock , retrieved by astronauts david scott and james irwin during the apollo 15 mission . this anorthosite rock is composed almost exclusively of the calcium-rich feldspar mineral anorthite , and is believed to be representative of the highland crust . a geochemical component called kreep was discovered , which has no known terrestrial counterpart . kreep and the _anorthositic_ samples have been used to infer that the outer portion of the moon was once completely molten ( see lunar magma ocean ) .
+            QUESTION: what was the name of the rock found during the apollo 15 mission that kreep was discovered in ?
+         TRUE ANSWER: genesis rock
+    PREDICTED ANSWER: highlands crust . as such , they represent samples from a very early period in the development of the solar system , that are largely absent on earth . one important rock found during the apollo program is dubbed the genesis rock
+     F1 SCORE ANSWER: 0.114
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 105
+there are infinitely many primes , as demonstrated by euclid around 300 bc . there is no known simple formula that separates prime numbers from composite numbers . however , the distribution of primes , that is to say , the statistical behaviour of primes in the large , can be modelled . the first result in that direction is the prime number theorem , proven at the end of the 19th century , which says that the probability that a given , randomly chosen number n is prime is inversely proportional to its number of digits , or to the logarithm of n .
+            QUESTION: what theorem states that the probability that a number n is prime is inversely proportional to its logarithm ?
+         TRUE ANSWER: the prime number theorem
+    PREDICTED ANSWER: the statistical behaviour of primes in the large , can be modelled . the first result in that direction is the prime number theorem
+     F1 SCORE ANSWER: 0.286
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 116
+abc also owns the times square studios at 1500 broadway on land in times square owned by a development fund for the 42nd street project ; opened in 1999 , good morning america and nightline are broadcast from this particular facility . abc news has premises a little further on west 66th street , in a six-story building occupying a 196 feet ( 60 m ) _×_ 379 feet ( 116 m ) plot at _121–135_ west end avenue . the block of west end avenue housing the abc news building was renamed peter jennings way in 2006 in honor of the recently deceased longtime abc news chief anchor and anchor of world news tonight .
+            QUESTION: a block of west end avenue that houses an abc news building was renamed for what abc anchor ?
+         TRUE ANSWER: peter jennings
+    PREDICTED ANSWER: 
+     F1 SCORE ANSWER: 0.000
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 188
+not only are all the major british architects of the last four hundred years represented , but many european ( especially italian ) and american architects ' drawings are held in the collection . the riba 's holdings of over 330 drawings by andrea palladio are the largest in the world , other europeans well represented are jacques _gentilhatre_ and antonio visentini . british architects whose drawings , and in some cases models of their buildings , in the collection , include : inigo jones , sir christopher wren , sir john vanbrugh , nicholas hawksmoor , william kent , james gibbs , robert adam , sir william chambers , james wyatt , henry holland , john nash , sir john soane , sir charles barry , charles robert cockerell , augustus welby northmore pugin , sir george gilbert scott , john loughborough pearson , george edmund street , richard norman shaw , alfred waterhouse , sir edwin lutyens , charles rennie mackintosh , charles holden , frank hoar , lord richard rogers , lord norman foster , sir nicholas grimshaw , zaha hadid and alick horsnell .
+            QUESTION: which architect , famous for designing london 's st. paul cathedral , is represented in the riba collection ?
+         TRUE ANSWER: sir christopher wren
+    PREDICTED ANSWER: andrea palladio are the largest in the world , other europeans well represented are jacques gentilhatre and antonio visentini . british architects whose drawings , and in some cases models of their buildings , in the collection , include : inigo jones
+     F1 SCORE ANSWER: 0.000
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 112
+the crew of apollo 8 sent the first live televised pictures of the earth and the moon back to earth , and read from the creation story in the book of genesis , on christmas eve , 1968 . an estimated one-quarter of the population of the world _saw—either_ live or _delayed—the_ christmas eve transmission during the ninth orbit of the moon . the mission and christmas provided an inspiring end to 1968 , which had been a troubled year for the us , marked by vietnam war protests , race riots , and the assassinations of civil rights leader martin luther king , jr. , and senator robert f. kennedy .
+            QUESTION: how much of the population of earth ended up seeing the images of the earth and the moon ?
+         TRUE ANSWER: one-quarter
+    PREDICTED ANSWER: one-quarter
+     F1 SCORE ANSWER: 1.000
+            EM SCORE: True
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 38
+in early 2012 , nfl commissioner roger goodell stated that the league planned to make the 50th super bowl " spectacular " and that it would be " an important game for us as a league " .
+            QUESTION: what one word did the nfl commissioner use to describe what super bowl 50 was intended to be ?
+         TRUE ANSWER: spectacular
+    PREDICTED ANSWER: spectacular " and that it would be " an important game for us as a league "
+     F1 SCORE ANSWER: 0.154
+            EM SCORE: False
+
+CONTEXT: (green text is true answer, magenta background is predicted start, red background is predicted end, _underscores_ are unknown tokens). Length: 107
+prime numbers have influenced many artists and writers . the french composer olivier messiaen used prime numbers to create _ametrical_ music through " natural phenomena " . in works such as la _nativité_ du seigneur ( 1935 ) and quatre études de rythme ( _1949–50_ ) , he simultaneously employs motifs with lengths given by different prime numbers to create unpredictable rhythms : the primes 41 , 43 , 47 and 53 appear in the third étude , " neumes _rythmiques_ " . according to messiaen this way of composing was " inspired by the movements of nature , movements of free and unequal durations " .
+            QUESTION: in which etude of neumes rythmiques do the primes 41 , 43 , 47 and 53 appear in ?
+         TRUE ANSWER: the third étude
+    PREDICTED ANSWER: 
+     F1 SCORE ANSWER: 0.000
+            EM SCORE: False
+
