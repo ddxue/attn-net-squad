@@ -18,6 +18,7 @@ import tensorflow as tf
 from tensorflow.python.ops.rnn_cell import DropoutWrapper
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.ops import rnn_cell
+import numpy as np
 
 
 class RNNEncoder(object):
@@ -174,6 +175,110 @@ class BasicAttn(object):
             output = tf.nn.dropout(output, self.keep_prob)
 
             return attn_dist, output
+
+class SelfAttn(object):
+    ''' Self Attention Layer, refer to 5.1.3 of the handout '''
+
+    def __init__(self, keep_prob, blended_reps_size, num_reps, batch_size):
+        '''inputs:
+            keep_prob: dropout rate
+            blended_reps_size: blended representation size
+            num_reps: the number of representations'''
+        self.keep_prob = keep_prob
+        self.blended_reps_size = blended_reps_size
+        self.num_reps = num_reps
+        self.rnn_cell_fw = rnn_cell.GRUCell(self.blended_reps_size)
+        self.rnn_cell_fw = DropoutWrapper(
+            self.rnn_cell_fw,
+            input_keep_prob=self.keep_prob,
+        )
+        self.rnn_cell_bw = rnn_cell.GRUCell(self.blended_reps_size)
+        self.rnn_cell_bw = DropoutWrapper(
+            self.rnn_cell_bw,
+            input_keep_prob=self.keep_prob,
+        )
+        self.batch_size = batch_size
+
+    '''
+    inputs:
+        blended_reps: blended representations of questions and contexts
+    outputs:
+        hidden_state: as a bidirectional rnn output
+    '''
+    def build_graph(self, blended_reps):
+        with vs.variable_scope("SelfAttn"):
+            W_1 = tf.get_variable(
+                'W_1',
+                shape=(self.blended_reps_size, self.blended_reps_size, ),
+                initializer=tf.contrib.layers.xavier_initializer(seed=2),
+            )
+            W_2 = tf.get_variable(
+                'W_2',
+                shape=(self.blended_reps_size, self.blended_reps_size, ),
+                initializer=tf.contrib.layers.xavier_initializer(seed=3),
+            )
+            V = tf.get_variable(
+                'V',
+                shape=(self.blended_reps_size,),
+                initializer=tf.contrib.layers.xavier_initializer(seed=5),
+            )
+
+            # e = np.zeros((self.batch_size, self.num_reps, self.num_reps))
+            #
+            # for b in range(self.batch_size):
+            #     for i in range(self.num_reps):
+            #         for j in range(self.num_reps):
+            #             h1 = tf.reduce_sum(
+            #                 tf.multiply(W_1, blended_reps[b, i]),
+            #                 1,
+            #                 keep_dims=True,
+            #             )
+            #             h2 = tf.reduce_sum(
+            #                 tf.multiply(W_2, blended_reps[b, j]),
+            #                 1,
+            #                 keep_dims=True,
+            #             )
+            #             z = tf.reshape(tf.nn.tanh(tf.add(h1, h2)), [-1])
+            #             e[b, i, j] = tf.reduce_sum(
+            #                 np.dot(V, z)
+            #             )
+            #
+            # e = tf.convert_to_tensor(e)
+
+            blended_reps_t = tf.transpose(
+                blended_reps,
+                [0, 2, 1],
+            )
+            h1 = tf.einsum('jk,ikl->ijl', W_1, blended_reps_t)
+            h2 = tf.einsum('jk,ikl->ijl', W_2, blended_reps_t)
+            h1_ = tf.expand_dims(h1, 1)
+            h2_ = tf.expand_dims(h2, 2)
+            z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [
+                self.batch_size,
+                -1,
+                self.blended_reps_size,
+            ]))
+            e = tf.reshape(
+                tf.einsum('k,ijk->ij', tf.transpose(V), z),
+                [self.batch_size, self.num_reps, self.num_reps],
+            )
+            alpha = tf.nn.softmax(e, 2)
+            # a = tf.einsum('bij,bij->bi', alpha, blended_reps)
+            a = tf.matmul(alpha, blended_reps)
+
+            further_concat = tf.concat([blended_reps, a], axis=2)
+            input_shape = tf.convert_to_tensor([
+                self.num_reps for _ in range(self.batch_size)
+            ])
+            (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(
+                self.rnn_cell_fw,
+                self.rnn_cell_bw,
+                further_concat,
+                input_shape,
+                dtype=tf.float32,
+            )
+            return tf.concat([fw_out, bw_out], axis=2)
+
 
 
 def masked_softmax(logits, mask, dim):
