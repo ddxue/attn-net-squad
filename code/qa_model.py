@@ -30,7 +30,7 @@ from tensorflow.python.ops import embedding_ops
 from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
-from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN
+from modules import RNNEncoder, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN, BiDirectionalAttn
 
 logging.basicConfig(level=logging.INFO)
 
@@ -147,19 +147,27 @@ class QAModel(object):
             basic_attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
             _, basic_attn_output = basic_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens)    # (batch_size, context_len, hidden_size*2)
 
-            # Concat basic_attn_output to context_hiddens to get blended_reps_basic
-            blended_reps_basic = tf.concat([context_hiddens, basic_attn_output], axis=2)     # (batch_size, context_len, hidden_size*4)
+            # Concat basic_attn_output to context_hiddens to get basic_blended_reps
+            basic_blended_reps = tf.concat([context_hiddens, basic_attn_output], axis=2)                    # (batch_size, context_len, hidden_size*4)
 
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*4, self.FLAGS.context_len)
-            _, self_attn_output = self_attn_layer.build_graph(blended_reps_basic, context_hiddens, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, context_hiddens, self.context_mask)    # (batch_size, context_len, hidden_size*4)
 
-            # Concat blended_reps_ to self_attn_output to get blended_reps__
-            blended_reps_self = tf.concat([blended_reps_basic, self_attn_output], axis=2)   # (batch_size, context_len, hidden_size*8)
+            # Concat blended_reps_ to self_attn_output to get self_blended_reps
+            self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
 
             encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps = encoder_.build_graph(blended_reps_self, self.context_mask)
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
         
+        elif self.FLAGS.attention == "BiDAF":
+            bi_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
+
+            # attn_output is shape (batch_size, context_len, hidden_size*2)
+            context_to_question, question_to_context = bi_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+
+            blended_reps = tf.concat([context_hiddens, context_to_question, question_to_context], axis=2)   # (batch_size, context_len, hidden_size*4)
+
         else:   # default BasicAttn
             attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
             _, attn_output = attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens) # attn_output is shape (batch_size, context_len, hidden_size*2)
