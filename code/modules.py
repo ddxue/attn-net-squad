@@ -246,7 +246,6 @@ class SelfAttn(object):
             h2 = tf.expand_dims(h2, 2)                                  # (batch_size, num_keys, 1)
             h2 = tf.layers.dense(h2, self.num_keys, activation=None)    # (batch_size, num_keys, num_keys)
             h2 = tf.transpose(h2, [0, 2, 1])                            # (batch_size, num_keys, num_keys)
-
             # TODO: Remove Unnecessary Transpose?
 
             # Get the attention scores (logits) e
@@ -430,11 +429,11 @@ class BiDirectionalAttn(object):
             keys_attn_logits_mask = tf.expand_dims(keys_mask, 1)                            # (batch_size, 1, num_keys)
             _, keys_attn_dist = masked_softmax(m, keys_attn_logits_mask, 2)                 # (batch_size, num_keys, 1)
             
-            # Use attention distribution to take weighted sum of keys
-            values_to_keys = tf.matmul(keys_attn_dist, keys)                                # (batch_size, num_values, vec_size)
+            # Use attention distribution to take weighted sum of keys                       # (batch_size, num_keys, vec_size)
+            values_to_keys = tf.matmul(keys_attn_dist, keys)                                # (batch_size, num_keys, vec_size)
 
             # Apply dropout
-            values_to_keys = tf.nn.dropout(values_to_keys, self.keep_prob)                  # (batch_size, num_values, vec_size)
+            values_to_keys = tf.nn.dropout(values_to_keys, self.keep_prob)                  # (batch_size, num_keys, vec_size)
 
             return keys_to_values, values_to_keys
 
