@@ -134,6 +134,8 @@ class QAModel(object):
         context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
         question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask) # (batch_size, question_len, hidden_size*2)
 
+        print "Running Attention Model with... " % self.FLAGS.attention
+        
         if self.FLAGS.attention == "SelfAttn":
             # Incorporate question information into passage representation.
             basic_attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
@@ -164,7 +166,6 @@ class QAModel(object):
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
             context_q2c = tf.multiply(context_hiddens, question_to_context)
-
             blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
 
             # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
@@ -174,6 +175,30 @@ class QAModel(object):
             # TODO: Add Second Layer of BiLSTM elegantly
             modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_final = modeling_layer_2.build_graph(blended_reps_, self.context_mask)      # (batch_size, context_len, hidden_size*2).
+
+        elif self.FLAGS.attention == "BiSelfAttn":
+            bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
+            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+
+            # Combine attention vectors and hidden context vector
+            context_c2q = tf.multiply(context_hiddens, context_to_question)
+            context_q2c = tf.multiply(context_hiddens, question_to_context)
+            basic_blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
+
+            # Match the question-aware passage (blended) representation against itself
+            self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*8, self.FLAGS.context_len)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, context_hiddens, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+
+            # Concat blended_reps_ to self_attn_output to get self_blended_reps
+            self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
+
+            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
+        
+            # Apply fully connected layer to each blended representation
+            # Note, blended_reps_final corresponds to b' in the handout
+            # Note, tf.contrib.layers.fully_connected applies a ReLU non-linarity here by default
+            blended_reps_final = tf.contrib.layers.fully_connected(blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
 
         else:   # Default: self.FLAGS.attention == "BasicAttn"
             # Use context hidden states to attend to question hidden states

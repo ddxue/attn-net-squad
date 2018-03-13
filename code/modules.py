@@ -266,8 +266,8 @@ class SelfAttn(object):
             # Use attention distribution to take weighted sum of values
             output = tf.matmul(attn_dist, values)                       # (batch_size, num_keys, value_vec_size)
 
-            # # Apply dropout
-            # output = tf.nn.dropout(output, self.keep_prob)
+            # Apply dropout
+            output = tf.nn.dropout(output, self.keep_prob)
 
             return attn_dist, output
 
