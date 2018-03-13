@@ -134,7 +134,7 @@ class QAModel(object):
         context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
         question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask) # (batch_size, question_len, hidden_size*2)
 
-        print "Running Attention Model with... " % self.FLAGS.attention
+        print "Running Attention Model with... %s" % self.FLAGS.attention
         
         if self.FLAGS.attention == "SelfAttn":
             # Incorporate question information into passage representation.
