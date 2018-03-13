@@ -161,12 +161,14 @@ class QAModel(object):
             blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
         
         elif self.FLAGS.attention == "BiDAF":
-            bi_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
+            bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
 
-            # attn_output is shape (batch_size, context_len, hidden_size*2)
-            context_to_question, question_to_context = bi_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
 
-            blended_reps = tf.concat([context_hiddens, context_to_question, question_to_context], axis=2)   # (batch_size, context_len, hidden_size*4)
+            context_c2q = tf.multiply(context_hiddens, context_to_question)
+            context_q2c = tf.multiply(context_hiddens, question_to_context)
+
+            blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
 
         else:   # default BasicAttn
             attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
