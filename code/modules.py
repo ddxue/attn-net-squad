@@ -220,7 +220,6 @@ class SelfAttn(object):
         """
         with vs.variable_scope("SelfAttn"):
             T_dim = 10
-            blended_reps = values
             W_1 = tf.get_variable(
                 'W_1',
                 shape=[self.value_vec_size, T_dim],
@@ -231,29 +230,40 @@ class SelfAttn(object):
                 shape=[self.value_vec_size, T_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
-            V = tf.get_variable(                                        # (num_keys, num_keys)
+            V = tf.get_variable(                                    
                 'V',
                 shape=[T_dim, ],
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
             )
 
-            blended_reps_t = tf.transpose(blended_reps,[0, 2, 1])   # (batch_size, hidden_size*4, num_reps)
-            h1 = tf.einsum('kj,ikl->ijl', W_1, blended_reps_t)
-            h2 = tf.einsum('kj,ikl->ijl', W_2, blended_reps_t)
-            h1_ = tf.expand_dims(h1, 2)
-            h2_ = tf.expand_dims(h2, 3)
-            print(tf.add(h1_, h2_).get_shape().as_list())
+            values_t = tf.transpose(values,[0, 2, 1])               # (batch_size, hidden_size*4, num_reps)
+            print("0: ", values_t.get_shape().as_list())
+
+            h1 = tf.einsum('kj,ikl->ijl', W_1, values_t)
+            print("1: ", h1.get_shape().as_list())
+            h1 = tf.expand_dims(h1, 2)
+            print("2: ", h1.get_shape().as_list())
+
+            h2 = tf.einsum('kj,ikl->ijl', W_2, values_t)
+            print("3: ", h2.get_shape().as_list())
+            h2 = tf.expand_dims(h2, 3)
+            print("4: ", h2.get_shape().as_list())
+
+            # Get the attention scores (logits) e
+            print("5: ", tf.add(h1_, h2_).get_shape().as_list())
             z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, 10, num_reps)
                 self.batch_size,
                 T_dim,
                 -1,
             ]))
-
+            print("z: ", z.get_shape().as_list())
             e = tf.reshape(                                         # (self.batch_size, self.num_reps, self.num_reps)
                 tf.einsum('k,ikj->ij', V, z),
                 [self.batch_size, self.num_keys, self.num_keys],
             )
+            print("e: ", e.get_shape().as_list())
 
+            # Apply softmax to get attention distribution over previous hidden states
             attn_logits_mask = tf.expand_dims(keys_mask, 1)             # (batch_size, 1, num_keys)
             _, attn_dist = masked_softmax(e, attn_logits_mask, 2)       # (batch_size, num_keys, num_keys). take softmax over keys
 
