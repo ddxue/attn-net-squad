@@ -219,20 +219,21 @@ class SelfAttn(object):
             (using the attention distribution as weights).
         """
         with vs.variable_scope("SelfAttn"):
+            T_dim = 10
             blended_reps = values
             W_1 = tf.get_variable(
                 'W_1',
-                shape=[self.value_vec_size, 10],
+                shape=[self.value_vec_size, T_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=2),
             )
             W_2 = tf.get_variable(
                 'W_2',
-                shape=[self.value_vec_size, 10],
+                shape=[self.value_vec_size, T_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
             V = tf.get_variable(                                        # (num_keys, num_keys)
                 'V',
-                shape=[10, ],
+                shape=[T_dim, ],
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
             )
 
@@ -244,7 +245,7 @@ class SelfAttn(object):
             print(tf.add(h1_, h2_).get_shape().as_list())
             z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, 10, num_reps)
                 self.batch_size,
-                10,
+                T_dim,
                 -1,
             ]))
 
