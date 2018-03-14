@@ -236,28 +236,28 @@ class SelfAttn(object):
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
             )
 
-            values_t = tf.transpose(values,[0, 2, 1])               # (batch_size, hidden_size*4, num_reps)
+            values_t = tf.transpose(values,[0, 2, 1])                   # (batch_size, value_vec_size, num_keys)
             print("0: ", values_t.get_shape().as_list())
 
-            h1 = tf.einsum('kj,ikl->ijl', W_1, values_t)
+            h1 = tf.einsum('kj,ikl->ijl', W_1, values_t)                # (batch_size, T, num_keys)
             print("1: ", h1.get_shape().as_list())
-            h1 = tf.expand_dims(h1, 2)
+            h1 = tf.expand_dims(h1, 2)                                  # (batch_size, T, 1, num_keys)
             print("2: ", h1.get_shape().as_list())
 
-            h2 = tf.einsum('kj,ikl->ijl', W_2, values_t)
+            h2 = tf.einsum('kj,ikl->ijl', W_2, values_t)                # (batch_size, T, num_keys)
             print("3: ", h2.get_shape().as_list())
-            h2 = tf.expand_dims(h2, 3)
+            h2 = tf.expand_dims(h2, 3)                                  # (batch_size, T, num_keys, 1)
             print("4: ", h2.get_shape().as_list())
 
             # Get the attention scores (logits) e
-            print("5: ", tf.add(h1_, h2_).get_shape().as_list())
-            z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, 10, num_reps)
+            print("5: ", tf.add(h1, h2).get_shape().as_list())          # (batch_size, T, num_keys, num_keys)
+            z = tf.tanh(tf.reshape(tf.add(h1, h2), [                    # (batch_size, T, num_keys * num_keys)
                 self.batch_size,
                 T_dim,
                 -1,
             ]))
             print("z: ", z.get_shape().as_list())
-            e = tf.reshape(                                         # (self.batch_size, self.num_reps, self.num_reps)
+            e = tf.reshape(                                             # (batch_size, num_keys, num_keys)
                 tf.einsum('k,ikj->ij', V, z),
                 [self.batch_size, self.num_keys, self.num_keys],
             )
@@ -271,7 +271,8 @@ class SelfAttn(object):
             output = tf.matmul(attn_dist, values)                       # (batch_size, num_keys, value_vec_size)
 
             # Apply dropout
-            output = tf.nn.dropout(output, self.keep_prob)
+            output = tf.nn.dropout(output, self.keep_prob)              # (batch_size, num_keys, value_vec_size)
+            print("output: ", output.get_shape().as_list())
 
             return output
 
