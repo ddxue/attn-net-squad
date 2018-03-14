@@ -201,7 +201,7 @@ class QAModel(object):
 
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*4, self.FLAGS.context_len, self.FLAGS.batch_size)
-            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, context_hiddens, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+            self_attn_output = self_attn_layer.build_graph(basic_blended_reps, context_hiddens, self.context_mask)    # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps_final = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)

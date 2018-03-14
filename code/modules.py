@@ -219,7 +219,7 @@ class SelfAttn(object):
             (using the attention distribution as weights).
         """
         with vs.variable_scope("SelfAttn"):
-            T_dim = 10
+            T_dim = 1
             W_1 = tf.get_variable(
                 'W_1',
                 shape=[self.value_vec_size, T_dim],
@@ -251,15 +251,14 @@ class SelfAttn(object):
 
             # Get the attention scores (logits) e
             print("5: ", tf.add(h1, h2).get_shape().as_list())          # (batch_size, T, num_keys, num_keys)
-            z = tf.tanh(tf.reshape(tf.add(h1, h2), [                    # (batch_size, T, num_keys * num_keys)
-                self.batch_size,
-                T_dim,
-                -1,
-            ]))
+            z = tf.tanh(tf.reshape(                                     # (batch_size, T, num_keys * num_keys)
+                tf.add(h1, h2),                      
+                [-1, T_dim, self.num_keys * self.num_keys]
+            ))
             print("z: ", z.get_shape().as_list())
             e = tf.reshape(                                             # (batch_size, num_keys, num_keys)
                 tf.einsum('k,ikj->ij', V, z),
-                [self.batch_size, self.num_keys, self.num_keys],
+                [-1, self.num_keys, self.num_keys],
             )
             print("e: ", e.get_shape().as_list())
 
@@ -501,7 +500,7 @@ class BiRNN(object):
                 self.rnn_cell_fw,
                 self.rnn_cell_bw,
                 inputs,
-                input_lens,
+                # sequence_length=input_lens,
                 dtype=tf.float32,
             )
 
