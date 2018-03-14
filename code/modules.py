@@ -222,12 +222,12 @@ class SelfAttn(object):
             blended_reps = values
             W_1 = tf.get_variable(
                 'W_1',
-                shape=[self.value_vec_size, 50],
+                shape=[self.value_vec_size, 10],
                 initializer=tf.contrib.layers.xavier_initializer(seed=2),
             )
             W_2 = tf.get_variable(
                 'W_2',
-                shape=[self.value_vec_size, 50],
+                shape=[self.value_vec_size, 10],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
             V = tf.get_variable(                                        # (num_keys, num_keys)
@@ -244,7 +244,7 @@ class SelfAttn(object):
             print(tf.add(h1_, h2_).get_shape().as_list())
             z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, 10, num_reps)
                 self.batch_size,
-                50,
+                10,
                 -1,
             ]))
 
@@ -252,14 +252,17 @@ class SelfAttn(object):
                 tf.einsum('k,ikj->ij', V, z),
                 [self.batch_size, self.num_keys, self.num_keys],
             )
-            # Apply softmax to get attention distribution over previous hidden states
-            alpha = tf.nn.softmax(e, 2)
 
-            #Concatenate the self-attention output
-            # a = tf.einsum('bij,bij->bi', alpha, blended_reps)
-            a = tf.matmul(alpha, blended_reps)
+            attn_logits_mask = tf.expand_dims(keys_mask, 1)             # (batch_size, 1, num_keys)
+            _, attn_dist = masked_softmax(e, attn_logits_mask, 2)       # (batch_size, num_keys, num_keys). take softmax over keys
 
-            return a
+            # Use attention distribution to take weighted sum of values
+            output = tf.matmul(attn_dist, values)                       # (batch_size, num_keys, value_vec_size)
+
+            # Apply dropout
+            output = tf.nn.dropout(output, self.keep_prob)
+
+            return output
 
 
             # values_t = tf.reshape(values, [-1, self.value_vec_size])    # (batch_size * num_keys, value_vec_size)
