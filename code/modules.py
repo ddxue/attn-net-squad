@@ -164,7 +164,7 @@ class BasicAttn(object):
             # Get the attention scores (logits) e                           # (batch_size, num_keys, value_vec_size)
             values_t = tf.transpose(values, perm=[0, 2, 1])                 # (batch_size, value_vec_size, num_values)
             e = tf.matmul(keys, values_t)                                   # (batch_size, num_keys, num_values)
-            
+
             # Calculate attention distribution
             attn_logits_mask = tf.expand_dims(values_mask, 1)               # (batch_size, 1, num_values)
             _, attn_dist = masked_softmax(e, attn_logits_mask, 2)           # (batch_size, num_keys, num_values). take softmax over values
@@ -178,7 +178,7 @@ class BasicAttn(object):
             return attn_dist, output
 
 class SelfAttn(object):
-    """Self (Matching) Attention Layer, refer to 5.1.3 of the handout 
+    """Self (Matching) Attention Layer, refer to 5.1.3 of the handout
 
     Note: in this module we use the terminology of "keys" and "values" (see lectures).
     In the terminology of "X attends to Y", "keys attend to values".
@@ -187,7 +187,7 @@ class SelfAttn(object):
     and the values are the blended question-passage hidden states.
     """
 
-    def __init__(self, keep_prob, key_vec_size, value_vec_size, num_keys):
+    def __init__(self, keep_prob, key_vec_size, value_vec_size, num_keys, batch_size):
         """
         Inputs:
             keep_prob: tensor containing a single scalar that is the keep probability (for dropout)
@@ -199,6 +199,7 @@ class SelfAttn(object):
         self.key_vec_size = key_vec_size
         self.value_vec_size = value_vec_size
         self.num_keys = num_keys
+        self.batch_size = batch_size
 
     def build_graph(self, values, keys, keys_mask):
         """
@@ -208,7 +209,7 @@ class SelfAttn(object):
             keys: Tensor shape (batch_size, num_keys, key_vec_size)
             keys_mask: Tensor shape (batch_size, num_keys).
                 1s where there's real input, 0s where there's padding
-        
+
         Outputs:
           attn_dist: Tensor shape (batch_size, num_keys, num_keys).
             For each key, the distribution should sum to 1,
@@ -218,79 +219,86 @@ class SelfAttn(object):
             (using the attention distribution as weights).
         """
         with vs.variable_scope("SelfAttn"):
+            blended_reps = values
             W_1 = tf.get_variable(
                 'W_1',
-                shape=[self.value_vec_size, 1],
+                shape=[self.value_vec_size, 50],
                 initializer=tf.contrib.layers.xavier_initializer(seed=2),
             )
             W_2 = tf.get_variable(
                 'W_2',
-                shape=[self.value_vec_size, 1],
+                shape=[self.value_vec_size, 50],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
             V = tf.get_variable(                                        # (num_keys, num_keys)
                 'V',
-                shape=[self.num_keys, self.num_keys],
+                shape=[10, ],
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
             )
 
-            values_t = tf.reshape(values, [-1, self.value_vec_size])    # (batch_size * num_keys, value_vec_size)
+            blended_reps_t = tf.transpose(blended_reps,[0, 2, 1])   # (batch_size, hidden_size*4, num_reps)
+            h1 = tf.einsum('kj,ikl->ijl', W_1, blended_reps_t)
+            h2 = tf.einsum('kj,ikl->ijl', W_2, blended_reps_t)
+            h1_ = tf.expand_dims(h1, 2)
+            h2_ = tf.expand_dims(h2, 3)
+            print(tf.add(h1_, h2_).get_shape().as_list())
+            z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, 10, num_reps)
+                self.batch_size,
+                50,
+                -1,
+            ]))
 
-            h1 = tf.matmul(values_t, W_1)                               # (batch_size * num_keys, 1)
-            h1 = tf.reshape(h1, [-1, self.num_keys])                    # (batch_size, num_keys)
-            h1 = tf.expand_dims(h1, 2)                                  # (batch_size, num_keys, 1)
-            h1 = tf.layers.dense(h1, self.num_keys, activation=None)    # (batch_size, num_keys, num_keys)
-
-            h2 = tf.matmul(values_t, W_2)                               # (batch_size * num_keys, 1)
-            h2 = tf.reshape(h2,[-1, self.num_keys])                     # (batch_size, num_keys)
-            h2 = tf.expand_dims(h2, 2)                                  # (batch_size, num_keys, 1)
-            h2 = tf.layers.dense(h2, self.num_keys, activation=None)    # (batch_size, num_keys, num_keys)
-            h2 = tf.transpose(h2, [0, 2, 1])                            # (batch_size, num_keys, num_keys)
-            # TODO: Remove Unnecessary Transpose?
-
-            # Get the attention scores (logits) e
-            z = tf.reshape(                                             # (batch_size * num_keys, num_keys)
-                tf.tanh(tf.add(h1, h2)), 
-                [-1, self.num_keys],
+            e = tf.reshape(                                         # (self.batch_size, self.num_reps, self.num_reps)
+                tf.einsum('k,ikj->ij', V, z),
+                [self.batch_size, self.num_keys, self.num_keys],
             )
-            e = tf.reshape(                                             # (batch_size, num_keys, num_keys)
-                tf.matmul(z, V),
-                [-1, self.num_keys, self.num_keys],
-            )
+            # Apply softmax to get attention distribution over previous hidden states
+            alpha = tf.nn.softmax(e, 2)
 
-            # Apply softmax to get attention distribution over previous hidden states  
-            attn_logits_mask = tf.expand_dims(keys_mask, 1)             # (batch_size, 1, num_keys)
-            _, attn_dist = masked_softmax(e, attn_logits_mask, 2)       # (batch_size, num_keys, num_keys). take softmax over keys
+            #Concatenate the self-attention output
+            # a = tf.einsum('bij,bij->bi', alpha, blended_reps)
+            a = tf.matmul(alpha, blended_reps)
 
-            # Use attention distribution to take weighted sum of values
-            output = tf.matmul(attn_dist, values)                       # (batch_size, num_keys, value_vec_size)
+            return a
 
-            # Apply dropout
-            output = tf.nn.dropout(output, self.keep_prob)
 
-            return attn_dist, output
-
-            # blended_reps_t = tf.transpose(blended_reps,[0, 2, 1])   # (batch_size, hidden_size*4, num_reps)
-            # h1 = tf.einsum('jk,ikl->ijl', W_1, blended_reps_t)
-            # h2 = tf.einsum('jk,ikl->ijl', W_2, blended_reps_t)
-            # h1_ = tf.expand_dims(h1, 1)
-            # h2_ = tf.expand_dims(h2, 2)
-            # z = tf.tanh(tf.reshape(tf.add(h1_, h2_), [              # (batch_size, -1, hidden_size*4)
-            #     self.batch_size,
-            #     -1,
-            #     self.blended_reps_size,
-            # ]))
-
-            # e = tf.reshape(                                         # (self.batch_size, self.num_reps, self.num_reps)
-            #     tf.einsum('k,ijk->ij', tf.transpose(V), z),     
-            #     [self.batch_size, self.num_reps, self.num_reps],
+            # values_t = tf.reshape(values, [-1, self.value_vec_size])    # (batch_size * num_keys, value_vec_size)
+            #
+            # h1 = tf.matmul(values_t, W_1)                               # (batch_size * num_keys, 1)
+            # h1 = tf.reshape(h1, [-1, self.num_keys])                    # (batch_size, num_keys)
+            # h1 = tf.expand_dims(h1, 2)                                  # (batch_size, num_keys, 1)
+            # h1 = tf.layers.dense(h1, self.num_keys, activation=None)    # (batch_size, num_keys, num_keys)
+            #
+            # h2 = tf.matmul(values_t, W_2)                               # (batch_size * num_keys, 1)
+            # h2 = tf.reshape(h2,[-1, self.num_keys])                     # (batch_size, num_keys)
+            # h2 = tf.expand_dims(h2, 2)                                  # (batch_size, num_keys, 1)
+            # h2 = tf.layers.dense(h2, self.num_keys, activation=None)    # (batch_size, num_keys, num_keys)
+            # h2 = tf.transpose(h2, [0, 2, 1])                            # (batch_size, num_keys, num_keys)
+            # # TODO: Remove Unnecessary Transpose?
+            #
+            # # Get the attention scores (logits) e
+            # z = tf.reshape(                                             # (batch_size * num_keys, num_keys)
+            #     tf.tanh(tf.add(h1, h2)),
+            #     [-1, self.num_keys],
             # )
-            # Apply softmax to get attention distribution over previous hidden states  
-            # alpha = tf.nn.softmax(e, 2) 
+            # e = tf.reshape(                                             # (batch_size, num_keys, num_keys)
+            #     tf.matmul(z, V),
+            #     [-1, self.num_keys, self.num_keys],
+            # )
+            #
+            # # Apply softmax to get attention distribution over previous hidden states
+            # attn_logits_mask = tf.expand_dims(keys_mask, 1)             # (batch_size, 1, num_keys)
+            # _, attn_dist = masked_softmax(e, attn_logits_mask, 2)       # (batch_size, num_keys, num_keys). take softmax over keys
+            #
+            # # Use attention distribution to take weighted sum of values
+            # output = tf.matmul(attn_dist, values)                       # (batch_size, num_keys, value_vec_size)
+            #
+            # # Apply dropout
+            # output = tf.nn.dropout(output, self.keep_prob)
+            #
+            # return attn_dist, output
 
-            # Concatenate the self-attention output
-            # # a = tf.einsum('bij,bij->bi', alpha, blended_reps)
-            # a = tf.matmul(alpha, blended_reps)
+
             # further_concat = tf.concat([blended_reps, a], axis=2)
 
             # # Pass these as input to a bidirectional RNN to obtain a new set of hidden states
@@ -339,7 +347,7 @@ class BiDirectionalAttn(object):
         ## Note that in BiDAF, value_vec_size == key_vec_size
         tf.assert_equal(key_vec_size, value_vec_size)
         self.key_vec_size = key_vec_size
-        self.value_vec_size = value_vec_size 
+        self.value_vec_size = value_vec_size
         self.num_values = num_values
         self.num_keys = num_keys
 
@@ -409,7 +417,7 @@ class BiDirectionalAttn(object):
 
             ##### Key-to-Value (C2Q) Attention ######
 
-            # Apply softmax to get attention distribution over previous hidden states  
+            # Apply softmax to get attention distribution over previous hidden states
             values_attn_logits_mask = tf.expand_dims(values_mask, 1)                        # (batch_size, 1, num_values)
             _, values_attn_dist = masked_softmax(S, values_attn_logits_mask, 2)             # (batch_size, num_keys, num_values)
 
@@ -425,10 +433,10 @@ class BiDirectionalAttn(object):
             # Take max of the corresponding row of the similarity matrix
             m = tf.reduce_max(S, axis=2, keep_dims=True)                                    # (batch_size, num_keys, 1)
 
-            # Apply softmax to get attention distribution over previous hidden states  
+            # Apply softmax to get attention distribution over previous hidden states
             keys_attn_logits_mask = tf.expand_dims(keys_mask, 1)                            # (batch_size, 1, num_keys)
             _, keys_attn_dist = masked_softmax(m, keys_attn_logits_mask, 2)                 # (batch_size, num_keys, 1)
-            
+
             # Use attention distribution to take weighted sum of keys                       # (batch_size, num_keys, vec_size)
             values_to_keys = tf.matmul(keys_attn_dist, keys)                                # (batch_size, num_keys, vec_size)
 
@@ -475,13 +483,13 @@ class BiRNN(object):
             # Note: fw_out and bw_out are the hidden states for every timestep.
             # Each is shape (batch_size, seq_len, hidden_size).
             (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(
-                self.rnn_cell_fw, 
-                self.rnn_cell_bw, 
-                inputs, 
-                input_lens, 
+                self.rnn_cell_fw,
+                self.rnn_cell_bw,
+                inputs,
+                input_lens,
                 dtype=tf.float32,
             )
-            
+
             # Concatenate the forward and backward hidden states
             out = tf.concat([fw_out, bw_out], 2)
 
@@ -527,13 +535,13 @@ class BiRNN2(object):
             # Note: fw_out and bw_out are the hidden states for every timestep.
             # Each is shape (batch_size, seq_len, hidden_size).
             (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(
-                self.rnn_cell_fw, 
-                self.rnn_cell_bw, 
-                inputs, 
-                input_lens, 
+                self.rnn_cell_fw,
+                self.rnn_cell_bw,
+                inputs,
+                input_lens,
                 dtype=tf.float32,
             )
-            
+
             # Concatenate the forward and backward hidden states
             out = tf.concat([fw_out, bw_out], 2)
 

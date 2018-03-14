@@ -68,7 +68,7 @@ tf.app.flags.DEFINE_string("json_in_path", "", "For official_eval mode, path to 
 tf.app.flags.DEFINE_string("json_out_path", "predictions.json", "Output path for official_eval mode. Defaults to predictions.json")
 
 # Type of attention to use
-tf.app.flags.DEFINE_string("attention", "BiSelfAttn", "Type of attention to be used (BasicAttn, SelfAttn, BiDAF, BiSelfAttn, ...)")
+tf.app.flags.DEFINE_string("attention", "SelfAttn", "Type of attention to be used (BasicAttn, SelfAttn, BiDAF, BiSelfAttn, ...)")
 
 FLAGS = tf.app.flags.FLAGS
 os.environ["CUDA_VISIBLE_DEVICES"] = str(FLAGS.gpu)
