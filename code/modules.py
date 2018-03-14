@@ -187,26 +187,23 @@ class SelfAttn(object):
     and the values are the blended question-passage hidden states.
     """
 
-    def __init__(self, keep_prob, key_vec_size, value_vec_size, num_keys, batch_size):
+    def __init__(self, keep_prob, value_vec_size, num_keys, weight_dim):
         """
         Inputs:
             keep_prob: tensor containing a single scalar that is the keep probability (for dropout)
-            key_vec_size: size of the key vectors. int
             value_vec_size: size of the value vectors. int
             num_keys: number of keys. int
         """
         self.keep_prob = keep_prob
-        self.key_vec_size = key_vec_size
         self.value_vec_size = value_vec_size
         self.num_keys = num_keys
-        self.batch_size = batch_size
+        self.weight_dim = weight_dim
 
-    def build_graph(self, values, keys, keys_mask):
+    def build_graph(self, values, keys_mask):
         """
         Inputs:
             values: Tensor shape (batch_size, num_keys, value_vec_size)
                 blended representations of questions and contexts
-            keys: Tensor shape (batch_size, num_keys, key_vec_size)
             keys_mask: Tensor shape (batch_size, num_keys).
                 1s where there's real input, 0s where there's padding
 
@@ -219,41 +216,40 @@ class SelfAttn(object):
             (using the attention distribution as weights).
         """
         with vs.variable_scope("SelfAttn"):
-            T_dim = 1
             W_1 = tf.get_variable(
                 'W_1',
-                shape=[self.value_vec_size, T_dim],
+                shape=[self.value_vec_size, self.weight_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=2),
             )
             W_2 = tf.get_variable(
                 'W_2',
-                shape=[self.value_vec_size, T_dim],
+                shape=[self.value_vec_size, self.weight_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
             V = tf.get_variable(                                    
                 'V',
-                shape=[T_dim, ],
+                shape=[self.weight_dim, ],
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
             )
 
             values_t = tf.transpose(values,[0, 2, 1])                   # (batch_size, value_vec_size, num_keys)
             print("0: ", values_t.get_shape().as_list())
 
-            h1 = tf.einsum('kj,ikl->ijl', W_1, values_t)                # (batch_size, T, num_keys)
+            h1 = tf.einsum('kj,ikl->ijl', W_1, values_t)                # (batch_size, weight_dim, num_keys)
             print("1: ", h1.get_shape().as_list())
-            h1 = tf.expand_dims(h1, 2)                                  # (batch_size, T, 1, num_keys)
+            h1 = tf.expand_dims(h1, 2)                                  # (batch_size, weight_dim, 1, num_keys)
             print("2: ", h1.get_shape().as_list())
 
-            h2 = tf.einsum('kj,ikl->ijl', W_2, values_t)                # (batch_size, T, num_keys)
+            h2 = tf.einsum('kj,ikl->ijl', W_2, values_t)                # (batch_size, weight_dim, num_keys)
             print("3: ", h2.get_shape().as_list())
-            h2 = tf.expand_dims(h2, 3)                                  # (batch_size, T, num_keys, 1)
+            h2 = tf.expand_dims(h2, 3)                                  # (batch_size, weight_dim, num_keys, 1)
             print("4: ", h2.get_shape().as_list())
 
             # Get the attention scores (logits) e
-            print("5: ", tf.add(h1, h2).get_shape().as_list())          # (batch_size, T, num_keys, num_keys)
-            z = tf.tanh(tf.reshape(                                     # (batch_size, T, num_keys * num_keys)
+            print("5: ", tf.add(h1, h2).get_shape().as_list())          # (batch_size, weight_dim, num_keys, num_keys)
+            z = tf.tanh(tf.reshape(                                     # (batch_size, weight_dim, num_keys * num_keys)
                 tf.add(h1, h2),                      
-                [-1, T_dim, self.num_keys * self.num_keys]
+                [-1, self.weight_dim, self.num_keys * self.num_keys]
             ))
             print("z: ", z.get_shape().as_list())
             e = tf.reshape(                                             # (batch_size, num_keys, num_keys)
@@ -500,7 +496,7 @@ class BiRNN(object):
                 self.rnn_cell_fw,
                 self.rnn_cell_bw,
                 inputs,
-                # sequence_length=input_lens,
+                input_lens,
                 dtype=tf.float32,
             )
 
