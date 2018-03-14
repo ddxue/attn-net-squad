@@ -476,11 +476,6 @@ class BiRNN(object):
         self.hidden_size = hidden_size
         self.keep_prob = keep_prob
 
-        self.rnn_cell_fw = rnn_cell.LSTMCell(self.hidden_size)
-        self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
-        self.rnn_cell_bw = rnn_cell.LSTMCell(self.hidden_size)
-        self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
-
     def build_graph(self, inputs, masks):
         """
         Inputs:
@@ -493,6 +488,11 @@ class BiRNN(object):
             This is all hidden states (fw and bw hidden states are concatenated).
         """
         with vs.variable_scope("BiRNN"):
+            self.rnn_cell_fw = rnn_cell.LSTMCell(self.hidden_size)
+            self.rnn_cell_fw = DropoutWrapper(self.rnn_cell_fw, input_keep_prob=self.keep_prob)
+            self.rnn_cell_bw = rnn_cell.LSTMCell(self.hidden_size)
+            self.rnn_cell_bw = DropoutWrapper(self.rnn_cell_bw, input_keep_prob=self.keep_prob)
+
             input_lens = tf.reduce_sum(masks, reduction_indices=1) # shape (batch_size)
 
             # Note: fw_out and bw_out are the hidden states for every timestep.
