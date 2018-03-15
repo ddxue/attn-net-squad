@@ -215,12 +215,15 @@ class QAModel(object):
             context_q2c = tf.multiply(context_hiddens, question_to_context)
             blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
 
-            # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
+            # Modeling Layers (3 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps_ = modeling_layer.build_graph(blended_reps, self.context_mask)              # (batch_size, context_len, hidden_size*2).
+            blended_reps_1 = modeling_layer.build_graph(blended_reps, self.context_mask)                 # (batch_size, context_len, hidden_size*2).
             
             modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps_final = modeling_layer_2.build_graph(blended_reps_, self.context_mask)        # (batch_size, context_len, hidden_size*2).
+            blended_reps_2 = modeling_layer_2.build_graph(blended_reps_1, self.context_mask)             # (batch_size, context_len, hidden_size*2).
+
+            modeling_layer_3 = BiRNN3(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps_final = modeling_layer_3.build_graph(blended_reps_2, self.context_mask)         # (batch_size, context_len, hidden_size*2).
 
         elif self.FLAGS.attention == "BiSelfAttn":
             # Use a RNN to get hidden states for the context and the question
