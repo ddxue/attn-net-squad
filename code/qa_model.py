@@ -218,7 +218,8 @@ class QAModel(object):
             # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_ = modeling_layer.build_graph(blended_reps, self.context_mask)              # (batch_size, context_len, hidden_size*2).
-            blended_reps_final = modeling_layer.build_graph(blended_reps_, self.context_mask)        # (batch_size, context_len, hidden_size*2).
+            modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps_final = modeling_layer_2.build_graph(blended_reps_, self.context_mask)        # (batch_size, context_len, hidden_size*2).
 
         elif self.FLAGS.attention == "BiSelfAttn":
             # Use a RNN to get hidden states for the context and the question
@@ -442,12 +443,12 @@ class QAModel(object):
         start_dist, end_dist = self.get_prob_dists(session, batch)
 
         # Using dynamic programming to get start_pos and end_pos, both shape (batch_size)
-        length = start.get_shape().as_list()[0]
+        length = start_dist.shape[0]
         span_start, span_start = self.max_product_span(start_dist, end_dist, length)
 
-        return np.array(span_start), np.array(span_start)
+        return span_start.eval(), span_start.eval()
 
-    def max_product_span(start, end, length):
+    def max_product_span(self, start, end, length):
         """ Finds answer span with the largest answer span probability product
         
         Dynamic programming approach for finding maximum product in linear time is applied
