@@ -154,7 +154,12 @@ class QAModel(object):
 
             # Encodes current passage and matching question information
             encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)            
-            blended_reps_final = encoder_.build_graph(self_blended_reps, self.context_mask)   
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask) 
+
+            # Apply fully connected layer to each blended representation
+            # Note, blended_reps_final corresponds to b' in the handout
+            # Note, tf.contrib.layers.fully_connected applies a ReLU non-linarity here by default
+            blended_reps_final = tf.contrib.layers.fully_connected(blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
 
         elif self.FLAGS.attention == "RNet":
             ### Step 3.1: Question and Passage Encoder ###
@@ -215,7 +220,7 @@ class QAModel(object):
             context_q2c = tf.multiply(context_hiddens, question_to_context)
             blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
 
-            # Modeling Layers (3 layers of bidirectional LSTM) encodes the query-aware representations of context words.
+            # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_1 = modeling_layer.build_graph(blended_reps, self.context_mask)                 # (batch_size, context_len, hidden_size*2).
             
@@ -238,11 +243,14 @@ class QAModel(object):
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
             context_q2c = tf.multiply(context_hiddens, question_to_context)
-            bi_blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
+            bi_blended_reps_1 = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
 
             # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
-            bi_blended_reps_final = modeling_layer.build_graph(bi_blended_reps, self.context_mask)              # (batch_size, context_len, hidden_size*2).
+            bi_blended_reps_2 = modeling_layer.build_graph(bi_blended_reps_1, self.context_mask)              # (batch_size, context_len, hidden_size*2).
+
+            modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
+            bi_blended_reps_final = modeling_layer_2.build_graph(bi_blended_reps_2, self.context_mask)             # (batch_size, context_len, hidden_size*2).
 
             ### SelfAttn Component ###
 
@@ -258,20 +266,18 @@ class QAModel(object):
             self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)           # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
-            self_blended_reps_final = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
+            self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
+
+            encoder_ = BiRNN3(self.FLAGS.hidden_size, self.keep_prob)
+            self_blended_reps_final = encoder_.build_graph(self_blended_reps, self.context_mask)      # (batch_size, context_len, hidden_size*2).
 
             ### Stack Models Together ###
-
             stacked_blended_reps = tf.concat([bi_blended_reps_final, self_blended_reps_final], axis=2) # (batch_size, context_len, hidden_size*3)
-
-            # TODO: Add Second BiLSTM elegantly
-            stacked_encoder = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps = stacked_encoder.build_graph(stacked_blended_reps, self.context_mask)      # (batch_size, context_len, hidden_size*2).
 
             # Apply fully connected layer to each blended representation
             # Note, blended_reps_final corresponds to b' in the handout
             # Note, tf.contrib.layers.fully_connected applies a ReLU non-linarity here by default
-            blended_reps_final = tf.contrib.layers.fully_connected(blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
+            blended_reps_final = tf.contrib.layers.fully_connected(stacked_blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
 
         else:   # Default: self.FLAGS.attention == "BasicAttn"
             # Use a RNN to get hidden states for the context and the question
