@@ -220,10 +220,7 @@ class QAModel(object):
             blended_reps_1 = modeling_layer.build_graph(blended_reps, self.context_mask)                 # (batch_size, context_len, hidden_size*2).
             
             modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps_2 = modeling_layer_2.build_graph(blended_reps_1, self.context_mask)             # (batch_size, context_len, hidden_size*2).
-
-            modeling_layer_3 = BiRNN3(self.FLAGS.hidden_size, self.keep_prob)
-            blended_reps_final = modeling_layer_3.build_graph(blended_reps_2, self.context_mask)         # (batch_size, context_len, hidden_size*2).
+            blended_reps_final = modeling_layer_2.build_graph(blended_reps_1, self.context_mask)             # (batch_size, context_len, hidden_size*2).
 
         elif self.FLAGS.attention == "BiSelfAttn":
             # Use a RNN to get hidden states for the context and the question
@@ -340,8 +337,10 @@ class QAModel(object):
             self.loss_end = tf.reduce_mean(loss_end)
             tf.summary.scalar('loss_end', self.loss_end)
 
+            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in vars_all])
+
             # Add the two losses
-            self.loss = self.loss_start + self.loss_end
+            self.loss = self.loss_start + self.loss_end + self.FLAGS.l2_beta * l2_loss
             tf.summary.scalar('loss', self.loss)
 
 

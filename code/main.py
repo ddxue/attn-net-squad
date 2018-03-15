@@ -53,7 +53,8 @@ tf.app.flags.DEFINE_integer("context_len", 400, "The maximum context length of y
 tf.app.flags.DEFINE_integer("question_len", 30, "The maximum question length of your model")
 tf.app.flags.DEFINE_integer("embedding_size", 100, "Size of the pretrained word vectors. This needs to be one of the available GloVe dimensions: 50/100/200/300")
 tf.app.flags.DEFINE_integer("self_attn_dim", 1, "The dimension of the matrices used in Self-Matching Attention")
-  
+tf.app.flags.DEFINE_integer("l2_beta", 0.99, "L2 regularization parameter.")
+
 # How often to print, save, 3
 tf.app.flags.DEFINE_integer("print_every", 1, "How many iterations to do per print.")
 tf.app.flags.DEFINE_integer("save_every", 500, "How many iterations to do per save.")
