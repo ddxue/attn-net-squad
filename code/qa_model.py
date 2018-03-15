@@ -337,10 +337,12 @@ class QAModel(object):
             self.loss_end = tf.reduce_mean(loss_end)
             tf.summary.scalar('loss_end', self.loss_end)
 
-            l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in vars_all])
+            # Calculate the L2 norm of all parameters
+            params = tf.trainable_variables()
+            l2_norm = tf.global_norm(params)
 
             # Add the two losses
-            self.loss = self.loss_start + self.loss_end + self.FLAGS.l2_beta * l2_loss
+            self.loss = self.loss_start + self.loss_end + self.FLAGS.l2_beta * l2_norm
             tf.summary.scalar('loss', self.loss)
 
 
