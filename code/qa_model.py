@@ -218,6 +218,7 @@ class QAModel(object):
             # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_ = modeling_layer.build_graph(blended_reps, self.context_mask)              # (batch_size, context_len, hidden_size*2).
+            
             modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_final = modeling_layer_2.build_graph(blended_reps_, self.context_mask)        # (batch_size, context_len, hidden_size*2).
 
@@ -443,10 +444,16 @@ class QAModel(object):
         start_dist, end_dist = self.get_prob_dists(session, batch)
 
         # Using dynamic programming to get start_pos and end_pos, both shape (batch_size)
-        length = start_dist.shape[0]
-        span_start, span_start = self.max_product_span(start_dist, end_dist, length)
+        if self.FLAGS.answer_span == "DynamicProgramming":
+            length = start_dist.shape[0]
+            span_start, span_start = self.max_product_span(start_dist, end_dist, length)
+            return span_start.eval(), span_start.eval()
+        else:
+            # Take argmax to get start_pos and end_post, both shape (batch_size)
+            start_pos = np.argmax(start_dist, axis=1)
+            end_pos = np.argmax(end_dist, axis=1)
 
-        return span_start.eval(), span_start.eval()
+            return start_pos, end_pos
 
     def max_product_span(self, start, end, length):
         """ Finds answer span with the largest answer span probability product
@@ -456,10 +463,10 @@ class QAModel(object):
         Args:  
             start: Tensor of shape [batch_size, context_len]. Probabilities for start of span.  
             end: Tensor of shape [batch_size, context_len]. Probabilities for end of span.  
-            length: Tensor of shape [N]. Length of each document.  
+            length: Tensor of shape [batch_size]. Length of each document.  
         
         Returns:  
-            Tuple containing two tensors of shape [N] with start and end indices 
+            Tuple containing two tensors of shape [batch_size] with start and end indices 
             for spans with maximum probability product
         """
         batch_size = tf.shape(start)[0]
