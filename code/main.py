@@ -70,7 +70,7 @@ tf.app.flags.DEFINE_string("json_out_path", "predictions.json", "Output path for
 
 # Type of attention to use
 tf.app.flags.DEFINE_string("attention", "BiDAF", "Type of attention to be used (BasicAttn, SelfAttn, RNet, BiDAF, BiSelfAttn, ...)")
-tf.app.flags.DEFINE_string("answer_span", "DynamicProgramming", "Type of answer span selection to use.")
+tf.app.flags.DEFINE_string("answer_span", "ArgMax", "Type of answer span selection to use (ArgMax, DynamicProgramming, ...).")
 
 FLAGS = tf.app.flags.FLAGS
 os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu
