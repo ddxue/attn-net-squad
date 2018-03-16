@@ -30,7 +30,7 @@ from tensorflow.python.ops import embedding_ops
 from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
-from modules import RNNEncoder, RNNEncoder2, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN, BiRNN2, BiRNN3, BiDirectionalAttn
+from modules import RNNEncoder, RNNEncoder2, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN, BiRNN2, BiRNN3, BiDirectionalAttn, GatedAttnCell
 
 logging.basicConfig(level=logging.INFO)
 
@@ -153,8 +153,8 @@ class QAModel(object):
             self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
 
             # Encodes current passage and matching question information
-            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)            
-            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask) 
+            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
 
             # Apply fully connected layer to each blended representation
             # Note, blended_reps_final corresponds to b' in the handout
@@ -167,23 +167,28 @@ class QAModel(object):
             # Apply 3-Layers of BiRNN to encode passages
             encoder = RNNEncoder(self.FLAGS.hidden_size, self.keep_prob)
             context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
-            context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
-            context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
+            # context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
+            # context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
 
             # Apply 3-Layers of BiRNN to encode questions
             encoder = RNNEncoder2(self.FLAGS.hidden_size, self.keep_prob)
             question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
-            question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
-            question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
+            # question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
+            # question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
             # TODO: Include Character-Level Embeddings
+            # basic_attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
+            # _, basic_attn_output = basic_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens)    # (batch_size, context_len, hidden_size*2)
 
             ### Step 3.2: Gated Attention-Based Recurrent Networks (C2Q) ###
+            gated_attn_cells_fw = GatedAttnCell(self.FLAGS.hidden_size * 2, self.FLAGS.hidden_size * 2, self.FLAGS.hidden_size, question_hiddens, self.context_mask)
+            gated_attn_cells_bw = GatedAttnCell(self.FLAGS.hidden_size * 2, self.FLAGS.hidden_size * 2, self.FLAGS.hidden_size, question_hiddens, self.context_mask)
+            gated_attn_output, _ = tf.nn.bidirectional_dynamic_rnn(gated_attn_cells_fw, gated_attn_cells_bw, inputs=context_hiddens, dtype=tf.float32)
+            gated_attn_output = tf.nn.dropout(tf.concat(gated_attn_output, 2), self.keep_prob)
+
             # Incorporate question information into passage representation.
-            basic_attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
-            _, basic_attn_output = basic_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens)    # (batch_size, context_len, hidden_size*2)
 
             # Concat basic_attn_output to context_hiddens to get basic_blended_reps
-            basic_blended_reps = tf.concat([context_hiddens, basic_attn_output], axis=2)                    # (batch_size, context_len, hidden_size*4)
+            basic_blended_reps = tf.concat([context_hiddens, gated_attn_output], axis=2)                    # (batch_size, context_len, hidden_size*4)
 
             ### Step 3.3: Self-Matching Attention ###
             # Match the question-aware passage (blended) representation against itself
@@ -194,10 +199,10 @@ class QAModel(object):
             self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
 
             # Encodes current passage and matching question information
-            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)            
-            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)   
+            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
 
-            ### Step 3.4: Output Layer (Pointer Networks)                
+            ### Step 3.4: Output Layer (Pointer Networks)
 
             # Apply fully connected layer to each blended representation
             # Note, blended_reps_final corresponds to b' in the handout
@@ -223,7 +228,7 @@ class QAModel(object):
             # Modeling Layers (2 layers of bidirectional LSTM) encodes the query-aware representations of context words.
             modeling_layer = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_1 = modeling_layer.build_graph(blended_reps, self.context_mask)                 # (batch_size, context_len, hidden_size*2).
-            
+
             modeling_layer_2 = BiRNN2(self.FLAGS.hidden_size, self.keep_prob)
             blended_reps_final = modeling_layer_2.build_graph(blended_reps_1, self.context_mask)             # (batch_size, context_len, hidden_size*2).
 
@@ -519,16 +524,16 @@ class QAModel(object):
 
     def max_product_span(self, start, end, length):
         """ Finds answer span with the largest answer span probability product
-        
+
         Dynamic programming approach for finding maximum product in linear time is applied
         to efficiently find the solution.
-        Args:  
-            start: Tensor of shape [batch_size, context_len]. Probabilities for start of span.  
-            end: Tensor of shape [batch_size, context_len]. Probabilities for end of span.  
-            length: Tensor of shape [batch_size]. Length of each document.  
-        
-        Returns:  
-            Tuple containing two tensors of shape [batch_size] with start and end indices 
+        Args:
+            start: Tensor of shape [batch_size, context_len]. Probabilities for start of span.
+            end: Tensor of shape [batch_size, context_len]. Probabilities for end of span.
+            length: Tensor of shape [batch_size]. Length of each document.
+
+        Returns:
+            Tuple containing two tensors of shape [batch_size] with start and end indices
             for spans with maximum probability product
         """
         batch_size = tf.shape(start)[0]
@@ -541,13 +546,13 @@ class QAModel(object):
 
         loop_vars = [i, j, span_start, span_end, argmax_start, max_product]
 
-        def cond(i, j, span_start, span_end, argmax_start, max_product): 
+        def cond(i, j, span_start, span_end, argmax_start, max_product):
             return tf.reduce_any(tf.less(j, length))
-        
+
         def body(i, j, span_start, span_end, argmax_start, max_product):
             i = tf.where(tf.less(j, length), j, i)
-            
-            # get current largest start probability up to i, compare with 
+
+            # get current largest start probability up to i, compare with
             # new possible start probability, update if necessary
             start_prob = tf.gather_nd(start, tf.stack([tf.range(batch_size), i], axis=1))
             max_start_prob = tf.gather_nd(start, tf.stack([tf.range(batch_size), argmax_start], axis=1))

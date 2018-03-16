@@ -18,8 +18,16 @@ import tensorflow as tf
 from tensorflow.python.ops.rnn_cell import DropoutWrapper
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.python.ops import rnn_cell
+from tensorflow.contrib.rnn import RNNCell
 import numpy as np
 
+
+def matrix_weight_mul(matrix, weight):
+    matrix_shape = matrix.get_shape().as_list()
+    weight_shape = weight.get_shape().as_list()
+    mat_flatten = tf.reshape(matrix, [-1, matrix_shape[-1]])
+    result = tf.matmul(mat_flatten, weight)
+    return tf.reshape(result, [-1, matrix_shape[1], weight_shape[-1]])
 
 class RNNEncoder(object):
     """
@@ -68,10 +76,10 @@ class RNNEncoder(object):
             # Note: fw_out and bw_out are the hidden states for every timestep.
             # Each is shape (batch_size, seq_len, hidden_size).
             (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(
-                self.rnn_cell_fw, 
-                self.rnn_cell_bw, 
-                inputs, 
-                input_lens, 
+                self.rnn_cell_fw,
+                self.rnn_cell_bw,
+                inputs,
+                input_lens,
                 dtype=tf.float32
             )
 
@@ -130,10 +138,10 @@ class RNNEncoder2(object):
             # Note: fw_out and bw_out are the hidden states for every timestep.
             # Each is shape (batch_size, seq_len, hidden_size).
             (fw_out, bw_out), _ = tf.nn.bidirectional_dynamic_rnn(
-                self.rnn_cell_fw, 
-                self.rnn_cell_bw, 
-                inputs, 
-                input_lens, 
+                self.rnn_cell_fw,
+                self.rnn_cell_bw,
+                inputs,
+                input_lens,
                 dtype=tf.float32
             )
 
@@ -182,6 +190,74 @@ class SimpleSoftmaxLayer(object):
             masked_logits, prob_dist = masked_softmax(logits, masks, 1)
 
             return masked_logits, prob_dist
+
+class GatedAttnCell(RNNCell):
+    """Module for Gated Attn, refer to R-Net Paper for more details"""
+
+    def __init__(self, key_vec_size, value_vec_size, weight_dim, key, masks, reuse=None):
+        super(GatedAttnCell, self).__init__(_reuse=reuse)
+        self.key_vec_size = key_vec_size
+        self.value_vec_size = value_vec_size
+        self.weight_dim = weight_dim
+        self.uQ = key
+        self.cell = tf.contrib.rnn.GRUCell(weight_dim)
+        self.masks = masks
+
+    @property
+    def state_size(self):
+        return self.weight_dim
+
+    @property
+    def output_size(self):
+        return self.weight_dim
+
+    def call(self, inputs, state):
+        with vs.variable_scope('gated_attention'):
+            W_uQ = tf.get_variable(
+                'W_uQ',
+                shape=[self.key_vec_size, self.weight_dim],
+                initializer=tf.contrib.layers.xavier_initializer(seed=7),
+            )
+            W_uP = tf.get_variable(
+                'W_uP',
+                shape=[self.value_vec_size, self.weight_dim],
+                initializer=tf.contrib.layers.xavier_initializer(seed=11),
+            )
+            W_vP = tf.get_variable(
+                'W_vP',
+                shape=[self.weight_dim, self.weight_dim],
+                initializer=tf.contrib.layers.xavier_initializer(seed=13),
+            )
+            W_g = tf.get_variable(
+                'W_g',
+                shape=[2 * self.key_vec_size, 2 * self.key_vec_size],
+                initializer=tf.contrib.layers.xavier_initializer(seed=17),
+            )
+            V = tf.get_variable(
+                'V',
+                shape=[self.weight_dim, 1],
+                initializer=tf.contrib.layers.xavier_initializer(seed=19),
+            )
+
+            W_uQ_uQ = matrix_weight_mul(self.uQ, W_uQ)
+            W_uP_utP = tf.expand_dims(tf.matmul(inputs, W_uP), 1)
+            W_vP_vtP = tf.expand_dims(tf.matmul(state, W_vP), 1)
+            print("W_UQ: ", W_uQ_uQ.get_shape().as_list())
+            print("W_u: ", W_uP_utP.get_shape().as_list())
+            print("W_v: ", W_vP_vtP.get_shape().as_list())
+            h = tf.nn.tanh(W_uQ_uQ + W_uP_utP + W_vP_vtP)
+            print("h: ", h.get_shape().as_list())
+            print("v: ", V.get_shape().as_list())
+            s_t = matrix_weight_mul(h, V)
+            print("st: ", s_t.get_shape().as_list())
+            a_t = tf.nn.softmax(s_t, 2)
+            c_t = tf.reduce_sum(tf.multiply(a_t, self.uQ), 1)
+            concat = tf.concat([inputs, c_t], 1)
+            g_t = tf.sigmoid(tf.matmul(concat, W_g))
+
+            return self.cell.call(tf.multiply(g_t, concat), state)
+
+
 
 
 class BasicAttn(object):
@@ -241,6 +317,8 @@ class BasicAttn(object):
             output = tf.matmul(attn_dist, values) # shape (batch_size, num_keys, value_vec_size)
 
             # Apply dropout
+            print("output: ", output.get_shape().as_list())
+            print("p: ", self.keep_prob.get_shape().as_list())
             output = tf.nn.dropout(output, self.keep_prob)
 
             return attn_dist, output
@@ -294,7 +372,7 @@ class SelfAttn(object):
                 shape=[self.value_vec_size, self.weight_dim],
                 initializer=tf.contrib.layers.xavier_initializer(seed=3),
             )
-            V = tf.get_variable(                                    
+            V = tf.get_variable(
                 'V',
                 shape=[self.weight_dim, ],
                 initializer=tf.contrib.layers.xavier_initializer(seed=5),
@@ -316,7 +394,7 @@ class SelfAttn(object):
             # Get the attention scores (logits) e
             print("5: ", tf.add(h1, h2).get_shape().as_list())          # (batch_size, weight_dim, num_keys, num_keys)
             z = tf.tanh(tf.reshape(                                     # (batch_size, weight_dim, num_keys * num_keys)
-                tf.add(h1, h2),                      
+                tf.add(h1, h2),
                 [-1, self.weight_dim, self.num_keys * self.num_keys]
             ))
             print("z: ", z.get_shape().as_list())
