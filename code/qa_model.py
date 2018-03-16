@@ -30,7 +30,7 @@ from tensorflow.python.ops import embedding_ops
 from evaluate import exact_match_score, f1_score
 from data_batcher import get_batch_generator
 from pretty_print import print_example
-from modules import RNNEncoder, RNNEncoder2, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN, BiRNN2, BiRNN3, BiDirectionalAttn, GatedAttnCell
+from modules import RNNEncoder, RNNEncoder2, RNNEncoder3, RNNEncoder4, RNNEncoder5, RNNEncoder6, SimpleSoftmaxLayer, BasicAttn, SelfAttn, BiRNN, BiRNN2, BiRNN3, BiDirectionalAttn, GatedAttnCell
 
 logging.basicConfig(level=logging.INFO)
 
@@ -165,16 +165,25 @@ class QAModel(object):
             ### Step 3.1: Question and Passage Encoder ###
             # Use a RNN to get hidden states for the context and the question
             # Apply 3-Layers of BiRNN to encode passages
-            encoder = RNNEncoder(self.FLAGS.hidden_size, self.keep_prob)
-            context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
-            # context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
-            # context_hiddens = encoder.build_graph(context_hiddens, self.context_mask)   # (batch_size, context_len, hidden_size*2)
+            encoder1 = RNNEncoder(self.FLAGS.hidden_size, self.keep_prob)
+            context_hiddens = encoder1.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
+
+            encoder2 = RNNEncoder2(self.FLAGS.hidden_size, self.keep_prob)
+            context_hiddens = encoder2.build_graph(context_hiddens, self.context_mask) # (batch_size, context_len, hidden_size*2)
+
+            encoder3 = RNNEncoder3(self.FLAGS.hidden_size, self.keep_prob)
+            context_hiddens = encoder3.build_graph(context_hiddens, self.context_mask) # (batch_size, context_len, hidden_size*2)
 
             # Apply 3-Layers of BiRNN to encode questions
-            encoder = RNNEncoder2(self.FLAGS.hidden_size, self.keep_prob)
-            question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
-            # question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
-            # question_hiddens = encoder.build_graph(question_hiddens, self.qn_mask)      # (batch_size, question_len, hidden_size*2)
+            encoder4 = RNNEncoder4(self.FLAGS.hidden_size, self.keep_prob)
+            question_hiddens = encoder4.build_graph(self.qn_embs, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
+
+            encoder5 = RNNEncoder5(self.FLAGS.hidden_size, self.keep_prob)
+            question_hiddens = encoder5.build_graph(question_hiddens, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
+
+            encoder6 = RNNEncoder4(self.FLAGS.hidden_size, self.keep_prob)
+            question_hiddens = encoder6.build_graph(question_hiddens, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
+
             # TODO: Include Character-Level Embeddings
             # basic_attn_layer = BasicAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2)
             # _, basic_attn_output = basic_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens)    # (batch_size, context_len, hidden_size*2)
