@@ -181,7 +181,7 @@ class QAModel(object):
             encoder5 = RNNEncoder5(self.FLAGS.hidden_size, self.keep_prob)
             question_hiddens = encoder5.build_graph(question_hiddens, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
 
-            encoder6 = RNNEncoder4(self.FLAGS.hidden_size, self.keep_prob)
+            encoder6 = RNNEncoder6(self.FLAGS.hidden_size, self.keep_prob)
             question_hiddens = encoder6.build_graph(question_hiddens, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
 
             # TODO: Include Character-Level Embeddings

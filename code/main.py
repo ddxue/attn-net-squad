@@ -44,16 +44,16 @@ tf.app.flags.DEFINE_string("experiment_name", "", "Unique name for your experime
 tf.app.flags.DEFINE_integer("num_epochs", 0, "Number of epochs to train. 0 means train indefinitely")
 
 # Hyperparameters
-tf.app.flags.DEFINE_float("learning_rate", 0.0001, "Learning rate.")
+tf.app.flags.DEFINE_float("learning_rate", 0.001, "Learning rate.")
 tf.app.flags.DEFINE_float("max_gradient_norm", 5.0, "Clip gradients to this norm.")
 tf.app.flags.DEFINE_float("dropout", 0.20, "Fraction of units randomly dropped on non-recurrent connections.")
-tf.app.flags.DEFINE_float("l2_beta", 0.0, "L2 regularization parameter.")
+tf.app.flags.DEFINE_float("l2_beta", 0.00001, "L2 regularization parameter.")
 tf.app.flags.DEFINE_integer("batch_size", 100, "Batch size to use")
-tf.app.flags.DEFINE_integer("hidden_size", 100, "Size of the hidden states")
+tf.app.flags.DEFINE_integer("hidden_size", 200, "Size of the hidden states")
 tf.app.flags.DEFINE_integer("context_len", 400, "The maximum context length of your model")
 tf.app.flags.DEFINE_integer("question_len", 30, "The maximum question length of your model")
 tf.app.flags.DEFINE_integer("embedding_size", 100, "Size of the pretrained word vectors. This needs to be one of the available GloVe dimensions: 50/100/200/300")
-tf.app.flags.DEFINE_integer("self_attn_dim", 1, "The dimension of the matrices used in Self-Matching Attention")
+tf.app.flags.DEFINE_integer("self_attn_dim", 10, "The dimension of the matrices used in Self-Matching Attention")
 
 # How often to print, save, 3
 tf.app.flags.DEFINE_integer("print_every", 1, "How many iterations to do per print.")
