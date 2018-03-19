@@ -147,7 +147,7 @@ class QAModel(object):
             ### Step 3.3: Self-Matching Attention ###
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*4, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
-            self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
@@ -202,7 +202,7 @@ class QAModel(object):
             ### Step 3.3: Self-Matching Attention ###
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*4, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
-            self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
@@ -227,7 +227,7 @@ class QAModel(object):
             question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask) # (batch_size, question_len, hidden_size*2)
 
             bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
-            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+            _, context_to_question, _, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
 
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
@@ -252,7 +252,7 @@ class QAModel(object):
             ### BiDAF Component ###
 
             bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
-            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+            _, context_to_question, _, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
 
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
@@ -274,7 +274,7 @@ class QAModel(object):
 
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*4, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
-            self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)           # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)           # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps_final = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
@@ -304,7 +304,7 @@ class QAModel(object):
             ### BiDAF Component ###
 
             bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
-            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+            _, context_to_question, _, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
 
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
@@ -329,7 +329,7 @@ class QAModel(object):
 
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*4, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
-            self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)           # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(basic_blended_reps, self.context_mask)           # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps = tf.concat([basic_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
@@ -354,7 +354,7 @@ class QAModel(object):
 
             # Incorporate question information into passage representation.
             bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
-            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+            _, context_to_question, _, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
 
             # Combine attention vectors and hidden context vector
             context_c2q = tf.multiply(context_hiddens, context_to_question)
@@ -364,7 +364,7 @@ class QAModel(object):
             ### Step 3.3: Self-Matching Attention ###
             # Match the question-aware passage (blended) representation against itself
             self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*8, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
-            self_attn_output = self_attn_layer.build_graph(bi_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+            _, self_attn_output = self_attn_layer.build_graph(bi_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
 
             # Concat blended_reps_ to self_attn_output to get self_blended_reps
             self_blended_reps = tf.concat([bi_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)

@@ -663,7 +663,7 @@ class SelfAttn(object):
             output = tf.nn.dropout(output, self.keep_prob)              # (batch_size, num_keys, value_vec_size)
             print("output: ", output.get_shape().as_list())
 
-            return output
+            return attn_dist, output
 
 
             # values_t = tf.reshape(values, [-1, self.value_vec_size])    # (batch_size * num_keys, value_vec_size)
@@ -847,7 +847,7 @@ class BiDirectionalAttn(object):
             # Apply dropout
             values_to_keys = tf.nn.dropout(values_to_keys, self.keep_prob)                  # (batch_size, num_keys, vec_size)
 
-            return keys_to_values, values_to_keys
+            return values_attn_dist, keys_to_values, keys_attn_dist, values_to_keys
 
 
 class BiRNN(object):
