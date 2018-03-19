@@ -71,7 +71,8 @@ tf.app.flags.DEFINE_string("json_out_path", "predictions.json", "Output path for
 
 # Type of attention to use
 tf.app.flags.DEFINE_string("attention", "BiDAF2Self", "Type of attention to be used (BasicAttn, SelfAttn, RNet, BiDAF, BiSelfAttn, BiDAF2Self, ...)")
-tf.app.flags.DEFINE_string("answer_span", "ArgMax", "Type of answer span selection to use (ArgMax, DynamicProgramming, ...).")
+tf.app.flags.DEFINE_string("answer_span", "DynamicProgramming", "Type of answer span selection to use (ArgMax, DynamicProgramming, ...).")
+tf.app.flags.DEFINE_integer("dp_cutoff", 30, "Maximum value of end_span further than the start_span")
 
 FLAGS = tf.app.flags.FLAGS
 os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu

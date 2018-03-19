@@ -554,9 +554,23 @@ class QAModel(object):
 
         # Using dynamic programming to get start_pos and end_pos, both shape (batch_size)
         if self.FLAGS.answer_span == "DynamicProgramming":
-            length = start_dist.shape[0]
-            span_start, span_start = self.max_product_span(start_dist, end_dist, length)
-            return span_start.eval(), span_start.eval()
+            start_pos, end_pos = [], []
+            for i in range(len(start_dist)):
+                exp_start_dist = start_dist[i]
+                exp_end_dist = end_dist[i]
+
+                max_prob = 0
+                max_start = max_end = 0
+                for start_idx, end_idx in itertools.product(range(len(exp_start_dist)), range(len(exp_end_dist))):
+                    if start_idx <= end_idx <= start_idx + self.FLAGS.dp_cutoff:
+                        prob = exp_start_dist[start_idx]*exp_end_dist[end_idx]
+                        if prob > max_prob:
+                            max_start, max_end = start_idx, end_idx
+                            max_prob = prob
+                start_pos.append(max_start)
+                end_pos.append(max_end)
+            
+            return start_pos, end_pos
         else:
             # Take argmax to get start_pos and end_post, both shape (batch_size)
             start_pos = np.argmax(start_dist, axis=1)
@@ -564,55 +578,7 @@ class QAModel(object):
 
             return start_pos, end_pos
 
-    def max_product_span(self, start, end, length):
-        """ Finds answer span with the largest answer span probability product
-
-        Dynamic programming approach for finding maximum product in linear time is applied
-        to efficiently find the solution.
-        Args:
-            start: Tensor of shape [batch_size, context_len]. Probabilities for start of span.
-            end: Tensor of shape [batch_size, context_len]. Probabilities for end of span.
-            length: Tensor of shape [batch_size]. Length of each document.
-
-        Returns:
-            Tuple containing two tensors of shape [batch_size] with start and end indices
-            for spans with maximum probability product
-        """
-        batch_size = tf.shape(start)[0]
-        i = tf.zeros((batch_size,), dtype=tf.int32)
-        j = tf.zeros((batch_size,), dtype=tf.int32)
-        span_start = tf.zeros((batch_size,), dtype=tf.int32)
-        span_end = tf.zeros((batch_size,), dtype=tf.int32)
-        argmax_start = tf.zeros((batch_size,), dtype=tf.int32)
-        max_product = tf.zeros((batch_size,), dtype=tf.float32)
-
-        loop_vars = [i, j, span_start, span_end, argmax_start, max_product]
-
-        def cond(i, j, span_start, span_end, argmax_start, max_product):
-            return tf.reduce_any(tf.less(j, length))
-
-        def body(i, j, span_start, span_end, argmax_start, max_product):
-            i = tf.where(tf.less(j, length), j, i)
-
-            # get current largest start probability up to i, compare with
-            # new possible start probability, update if necessary
-            start_prob = tf.gather_nd(start, tf.stack([tf.range(batch_size), i], axis=1))
-            max_start_prob = tf.gather_nd(start, tf.stack([tf.range(batch_size), argmax_start], axis=1))
-            argmax_start = tf.where(start_prob > max_start_prob, i, argmax_start)
-            max_start_prob = tf.where(start_prob > max_start_prob, start_prob, max_start_prob)
-
-            # calculate new product, if new product is greater update span and max product
-            end_prob = tf.gather_nd(end, tf.stack([tf.range(batch_size), i], axis=1))
-            new_product = max_start_prob * end_prob
-            span_start = tf.where(new_product > max_product, argmax_start, span_start)
-            span_end = tf.where(new_product > max_product, i, span_end)
-            max_product = tf.where(new_product > max_product, new_product, max_product)
-            return i, j+1, span_start, span_end, argmax_start, max_product
-
-        i, j, span_start, span_end, argmax_start, max_product = tf.while_loop(cond, body, loop_vars)
-        return span_start, span_end
-
-
+  
     def get_dev_loss(self, session, dev_context_path, dev_qn_path, dev_ans_path):
         """
         Get loss for entire dev set.
