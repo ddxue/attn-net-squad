@@ -345,6 +345,39 @@ class QAModel(object):
             # Note, tf.contrib.layers.fully_connected applies a ReLU non-linarity here by default
             blended_reps_final = tf.contrib.layers.fully_connected(stacked_blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
 
+        elif self.FLAGS.attention == "BiDAF2Self":
+            # Use a RNN to get hidden states for the context and the question
+            # Apply 3-Layers of BiRNN to encode passages
+            encoder = RNNEncoder(self.FLAGS.hidden_size, self.keep_prob)
+            context_hiddens = encoder.build_graph(self.context_embs, self.context_mask) # (batch_size, context_len, hidden_size*2)
+            question_hiddens = encoder.build_graph(self.qn_embs, self.qn_mask)          # (batch_size, question_len, hidden_size*2)
+
+            # Incorporate question information into passage representation.
+            bidaf_attn_layer = BiDirectionalAttn(self.keep_prob, self.FLAGS.hidden_size*2, self.FLAGS.hidden_size*2, self.FLAGS.question_len, self.FLAGS.context_len)
+            context_to_question, question_to_context = bidaf_attn_layer.build_graph(question_hiddens, self.qn_mask, context_hiddens, self.context_mask)
+
+            # Combine attention vectors and hidden context vector
+            context_c2q = tf.multiply(context_hiddens, context_to_question)
+            context_q2c = tf.multiply(context_hiddens, question_to_context)
+            bi_blended_reps = tf.concat([context_hiddens, context_to_question, context_c2q, context_q2c], axis=2)   # (batch_size, context_len, hidden_size*8)
+            
+            ### Step 3.3: Self-Matching Attention ###
+            # Match the question-aware passage (blended) representation against itself
+            self_attn_layer = SelfAttn(self.keep_prob, self.FLAGS.hidden_size*8, self.FLAGS.context_len, self.FLAGS.self_attn_dim)
+            self_attn_output = self_attn_layer.build_graph(bi_blended_reps, self.context_mask)    # (batch_size, context_len, hidden_size*4)
+
+            # Concat blended_reps_ to self_attn_output to get self_blended_reps
+            self_blended_reps = tf.concat([bi_blended_reps, self_attn_output], axis=2)                   # (batch_size, context_len, hidden_size*8)
+
+            # Encodes current passage and matching question information
+            encoder_ = BiRNN(self.FLAGS.hidden_size, self.keep_prob)
+            blended_reps = encoder_.build_graph(self_blended_reps, self.context_mask)
+
+            # Apply fully connected layer to each blended representation
+            # Note, blended_reps_final corresponds to b' in the handout
+            # Note, tf.contrib.layers.fully_connected applies a ReLU non-linarity here by default
+            blended_reps_final = tf.contrib.layers.fully_connected(blended_reps, num_outputs=self.FLAGS.hidden_size) # blended_reps_final is shape (batch_size, context_len, hidden_size)
+            
         else:   # Default: self.FLAGS.attention == "BasicAttn"
             # Use a RNN to get hidden states for the context and the question
             # Note: here the RNNEncoder is shared (i.e. the weights are the same)
