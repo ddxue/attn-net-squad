@@ -21,6 +21,7 @@ import time
 import logging
 import os
 import sys
+import itertools    
 
 import numpy as np
 import tensorflow as tf
@@ -659,8 +660,8 @@ class QAModel(object):
             pred_start_pos, pred_end_pos = self.get_start_end_pos(session, batch)
 
             # Convert the start and end positions to lists length batch_size
-            pred_start_pos = pred_start_pos.tolist() # list length batch_size
-            pred_end_pos = pred_end_pos.tolist() # list length batch_size
+            pred_start_pos = pred_start_pos # list length batch_size
+            pred_end_pos = pred_end_pos # list length batch_size
 
             for ex_idx, (pred_ans_start, pred_ans_end, true_ans_tokens) in enumerate(zip(pred_start_pos, pred_end_pos, batch.ans_tokens)):
                 example_num += 1

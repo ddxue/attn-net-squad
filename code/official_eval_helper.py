@@ -251,8 +251,8 @@ def generate_answers(session, model, word2id, qn_uuid_data, context_token_data, 
         pred_start_batch, pred_end_batch = model.get_start_end_pos(session, batch)
 
         # Convert pred_start_batch and pred_end_batch to lists length batch_size
-        pred_start_batch = pred_start_batch.tolist()
-        pred_end_batch = pred_end_batch.tolist()
+        pred_start_batch = pred_start_batch
+        pred_end_batch = pred_end_batch
 
         # For each example in the batch:
         for ex_idx, (pred_start, pred_end) in enumerate(zip(pred_start_batch, pred_end_batch)):
