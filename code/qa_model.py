@@ -552,11 +552,12 @@ class QAModel(object):
         """
         # Get start_dist and end_dist, both shape (batch_size, context_len)
         start_dist, end_dist = self.get_prob_dists(session, batch)
-
+        
         # Using dynamic programming to get start_pos and end_pos, both shape (batch_size)
         if self.FLAGS.answer_span == "DynamicProgramming":
             start_pos, end_pos = [], []
-            for i in range(len(start_dist)):
+            n_batches = len(start_dist)
+            for i in range(n_batches):
                 exp_start_dist = start_dist[i]
                 exp_end_dist = end_dist[i]
 
@@ -564,7 +565,7 @@ class QAModel(object):
                 max_start = max_end = 0
                 for start_idx, end_idx in itertools.product(range(len(exp_start_dist)), range(len(exp_end_dist))):
                     if start_idx <= end_idx <= start_idx + self.FLAGS.dp_cutoff:
-                        prob = exp_start_dist[start_idx]*exp_end_dist[end_idx]
+                        prob = exp_start_dist[start_idx] * exp_end_dist[end_idx]
                         if prob > max_prob:
                             max_start, max_end = start_idx, end_idx
                             max_prob = prob
@@ -572,13 +573,14 @@ class QAModel(object):
                 end_pos.append(max_end)
             
             return start_pos, end_pos
+        """
         else:
             # Take argmax to get start_pos and end_post, both shape (batch_size)
             start_pos = np.argmax(start_dist, axis=1)
             end_pos = np.argmax(end_dist, axis=1)
 
-            return start_pos, end_pos
-
+            return l_start_dist, l_end_dist, start_pos.tolist(), end_pos.tolist()
+        """
   
     def get_dev_loss(self, session, dev_context_path, dev_qn_path, dev_ans_path):
         """
@@ -658,7 +660,7 @@ class QAModel(object):
         for batch in get_batch_generator(self.word2id, context_path, qn_path, ans_path, self.FLAGS.batch_size, context_len=self.FLAGS.context_len, question_len=self.FLAGS.question_len, discard_long=False):
 
             pred_start_pos, pred_end_pos = self.get_start_end_pos(session, batch)
-
+            
             # Convert the start and end positions to lists length batch_size
             pred_start_pos = pred_start_pos # list length batch_size
             pred_end_pos = pred_end_pos # list length batch_size
@@ -684,13 +686,13 @@ class QAModel(object):
                 # Optionally pretty-print
                 if print_to_screen:
                     print_example(self.word2id, batch.context_tokens[ex_idx], batch.qn_tokens[ex_idx], batch.ans_span[ex_idx, 0], batch.ans_span[ex_idx, 1], pred_ans_start, pred_ans_end, true_answer, pred_answer, f1, em)
-
+                  
                 if num_samples != 0 and example_num >= num_samples:
                     break
 
             if num_samples != 0 and example_num >= num_samples:
                 break
-
+        
         f1_total /= example_num
         em_total /= example_num
 
